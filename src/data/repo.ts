@@ -76,20 +76,34 @@ export async function listLookSummaries(): Promise<LookSummary[]> {
 
 // ---------- pieces ----------
 
-export async function createPiece(input: PieceInput): Promise<string> {
+export async function createPiece(input: PieceInput, photo?: Blob): Promise<string> {
   const id = newId()
   const t = now()
-  await db.pieces.add({ ...cleanPiece(input), id, createdAt: t, updatedAt: t })
+  await db.transaction('rw', db.pieces, db.photos, async () => {
+    const photoId = photo ? await putPhoto(photo) : undefined
+    await db.pieces.add({ ...cleanPiece(input), photoId, id, createdAt: t, updatedAt: t })
+  })
   return id
 }
 
-export async function updatePiece(id: string, patch: Partial<PieceInput>): Promise<void> {
-  await db.pieces.update(id, { ...cleanPiece(patch), updatedAt: now() })
+/** photo: a Blob replaces the piece photo, null removes it, undefined leaves it. Old photos are deleted. */
+export async function updatePiece(id: string, patch: Partial<PieceInput>, photo?: Blob | null): Promise<void> {
+  await db.transaction('rw', db.pieces, db.photos, async () => {
+    const changes: Partial<Piece> = { ...cleanPiece(patch), updatedAt: now() }
+    if (photo !== undefined) {
+      const old = (await db.pieces.get(id))?.photoId
+      changes.photoId = photo ? await putPhoto(photo) : undefined
+      if (old) await deletePhoto(old)
+    }
+    await db.pieces.update(id, changes)
+  })
 }
 
 export async function deletePiece(id: string): Promise<void> {
-  await db.transaction('rw', db.pieces, db.lookPieces, async () => {
+  await db.transaction('rw', db.pieces, db.lookPieces, db.photos, async () => {
+    const piece = await db.pieces.get(id)
     await db.lookPieces.where('pieceId').equals(id).delete()
+    if (piece?.photoId) await deletePhoto(piece.photoId)
     await db.pieces.delete(id)
   })
 }

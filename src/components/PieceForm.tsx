@@ -2,16 +2,20 @@ import { useState } from 'react'
 import { useTagLists } from '../data/hooks'
 import { setTagList } from '../data/repo'
 import type { PieceInput } from '../data/types'
+import { PiecePhotoField } from './PiecePhotoField'
 import { StatusToggle } from './StatusToggle'
 
 interface Props {
   initial?: Partial<PieceInput>
+  /** The piece's saved photo, when editing. */
+  initialPhotoId?: string
   submitLabel: string
-  onSubmit: (p: PieceInput) => void | Promise<void>
+  /** photo: Blob = new photo, null = removed, undefined = unchanged. */
+  onSubmit: (p: PieceInput, photo: Blob | null | undefined) => void | Promise<void>
   onCancel?: () => void
 }
 
-export function PieceForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
+export function PieceForm({ initial, initialPhotoId, submitLabel, onSubmit, onCancel }: Props) {
   const tags = useTagLists()
   const [name, setName] = useState(initial?.name ?? '')
   const [category, setCategory] = useState(initial?.category ?? '')
@@ -19,6 +23,7 @@ export function PieceForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
   const [status, setStatus] = useState(initial?.status ?? 'owned')
   const [productUrl, setProductUrl] = useState(initial?.productUrl ?? '')
   const [newStyle, setNewStyle] = useState('')
+  const [photo, setPhoto] = useState<Blob | null | undefined>(undefined)
 
   const toggleStyle = (s: string) => setStyles((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]))
   // Adds the style to the saved list (so it shows for every piece) and selects it here.
@@ -39,7 +44,7 @@ export function PieceForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
       onSubmit={(e) => {
         e.preventDefault()
         if (!name.trim() || !category) return
-        void onSubmit({ name, category, styles, status, productUrl })
+        void onSubmit({ name, category, styles, status, productUrl }, photo)
       }}
     >
       <label className="field">
@@ -86,6 +91,7 @@ export function PieceForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
         <span>Product link (optional)</span>
         <input type="url" inputMode="url" value={productUrl} onChange={(e) => setProductUrl(e.target.value)} placeholder="https://…" />
       </label>
+      <PiecePhotoField productUrl={productUrl} savedPhotoId={initialPhotoId} value={photo} onChange={setPhoto} />
       <div className="row">
         <button type="submit" className="btn primary" disabled={!name.trim() || !category}>{submitLabel}</button>
         {onCancel && <button type="button" className="btn" onClick={onCancel}>Cancel</button>}

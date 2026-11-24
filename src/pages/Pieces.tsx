@@ -29,7 +29,7 @@ export function Pieces() {
         {shown.map((p) => (
           <li key={p.id}>
             <Link to={`/pieces/${p.id}`} className="list-btn">
-              <span>{p.name}</span>
+              <span className="name-with-thumb">{p.photoId && <Photo photoId={p.photoId} alt="" className="piece-thumb" />}{p.name}</span>
               <small className="muted">
                 {p.category}{p.styles.length ? ` · ${p.styles.join(', ')}` : ''} · {p.lookCount} look{p.lookCount === 1 ? '' : 's'}
               </small>
@@ -48,7 +48,7 @@ export function NewPiece() {
     <main className="page">
       <header className="page-head"><Link to="/pieces" className="back">← Pieces</Link></header>
       <h1>New piece</h1>
-      <PieceForm submitLabel="Save" onCancel={() => navigate('/pieces')} onSubmit={async (p) => { await createPiece(p); navigate('/pieces') }} />
+      <PieceForm submitLabel="Save" onCancel={() => navigate('/pieces')} onSubmit={async (p, photo) => { await createPiece(p, photo ?? undefined); navigate('/pieces') }} />
     </main>
   )
 }
@@ -70,8 +70,9 @@ export function PieceDetail() {
       <PieceForm
         key={piece.id}
         initial={piece}
+        initialPhotoId={piece.photoId}
         submitLabel={saved ? 'Saved ✓' : 'Save'}
-        onSubmit={async (p) => { await updatePiece(piece.id, p); setSaved(true); setTimeout(() => setSaved(false), 1500) }}
+        onSubmit={async (p, photo) => { await updatePiece(piece.id, p, photo); setSaved(true); setTimeout(() => setSaved(false), 1500) }}
       />
       <h2>In {looks.length} look{looks.length === 1 ? '' : 's'}</h2>
       <ul className="grid small">

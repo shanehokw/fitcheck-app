@@ -218,3 +218,26 @@ describe('collections', () => {
     expect(await getLook('l1')).not.toBeNull()
   })
 })
+
+describe('piece photos', () => {
+  it('create with photo, replace, remove, delete piece cleans up', async () => {
+    const id = await createPiece({ name: 'Skirt', category: 'skirt', styles: [], status: 'owned' }, photo('p1'))
+    const first = (await db.pieces.get(id))!.photoId!
+    expect(await getPhoto(first)).toBeDefined()
+
+    await updatePiece(id, { name: 'Skirt 2' }, photo('p2'))
+    const second = (await db.pieces.get(id))!.photoId!
+    expect(await getPhoto(first)).toBeUndefined()
+
+    await updatePiece(id, { name: 'Skirt 3' })
+    expect((await db.pieces.get(id))!.photoId).toBe(second)
+
+    await updatePiece(id, {}, null)
+    expect((await db.pieces.get(id))!.photoId).toBeUndefined()
+    expect(await db.photos.count()).toBe(0)
+
+    await updatePiece(id, {}, photo('p3'))
+    await deletePiece(id)
+    expect(await db.photos.count()).toBe(0)
+  })
+})

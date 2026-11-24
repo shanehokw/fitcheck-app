@@ -56,6 +56,7 @@ export function LookDetail() {
       <ul className="list">
         {pieces.map((p) => (
           <li key={p.id} className="piece-row">
+            {p.photoId && <Photo photoId={p.photoId} alt="" className="piece-thumb" />}
             <Link to={`/pieces/${p.id}`} className="piece-info">
               <span>{p.name}</span>
               <small className="muted">{[p.category, ...p.styles].join(' · ')}</small>

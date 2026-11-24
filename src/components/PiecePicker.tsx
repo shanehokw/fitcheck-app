@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { usePieces } from '../data/hooks'
 import { createPiece, linkPiece } from '../data/repo'
+import { Photo } from './Photo'
 import { PieceForm } from './PieceForm'
 
 export function PiecePicker({ lookId, linkedIds }: { lookId: string; linkedIds: string[] }) {
@@ -22,8 +23,8 @@ export function PiecePicker({ lookId, linkedIds }: { lookId: string; linkedIds: 
           initial={{ name: query }}
           submitLabel="Add to look"
           onCancel={() => setCreating(false)}
-          onSubmit={async (p) => {
-            const id = await createPiece(p)
+          onSubmit={async (p, photo) => {
+            const id = await createPiece(p, photo ?? undefined)
             await linkPiece(lookId, id)
             setCreating(false)
             setQuery('')
@@ -42,7 +43,7 @@ export function PiecePicker({ lookId, linkedIds }: { lookId: string; linkedIds: 
           {matches.map((p) => (
             <li key={p.id}>
               <button type="button" className="list-btn" onClick={() => linkPiece(lookId, p.id)}>
-                <span>{p.name}</span>
+                <span className="name-with-thumb">{p.photoId && <Photo photoId={p.photoId} alt="" className="piece-thumb" />}{p.name}</span>
                 <small className="muted">{p.category} · {p.status}</small>
               </button>
             </li>

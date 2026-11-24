@@ -1,0 +1,68 @@
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Photo } from '../components/Photo'
+import { PiecePicker } from '../components/PiecePicker'
+import { StatusToggle } from '../components/StatusToggle'
+import { useLook } from '../data/hooks'
+import { deleteLook, unlinkPiece, updateLook, updatePiece } from '../data/repo'
+
+export function LookDetail() {
+  const { id = '' } = useParams()
+  const data = useLook(id)
+  const navigate = useNavigate()
+
+  if (data === undefined) return <main className="page" />
+  if (data === null) return <main className="page"><p className="empty">Look not found. <Link to="/">Back to looks</Link></p></main>
+
+  const { look, pieces, complete } = data
+
+  return (
+    <main className="page">
+      <header className="page-head">
+        <Link to="/" className="back">← Looks</Link>
+        {complete && <span className="badge owned">Complete</span>}
+      </header>
+
+      <Photo photoId={look.photoId} alt={look.title || 'Look'} className="hero" />
+
+      <div className="stack" key={look.id}>
+        <label className="field">
+          <span>Title</span>
+          <input defaultValue={look.title} placeholder="Office Monday" onBlur={(e) => e.target.value !== look.title && updateLook(look.id, { title: e.target.value })} />
+        </label>
+        <label className="field">
+          <span>Notes</span>
+          <textarea defaultValue={look.notes} rows={2} onBlur={(e) => e.target.value !== look.notes && updateLook(look.id, { notes: e.target.value })} />
+        </label>
+      </div>
+
+      <h2>Pieces ({pieces.length})</h2>
+      {pieces.length === 0 && <p className="muted">Tag each piece in this look. Pieces are shared across looks.</p>}
+      <ul className="list">
+        {pieces.map((p) => (
+          <li key={p.id} className="piece-row">
+            <Link to={`/pieces/${p.id}`} className="piece-info">
+              <span>{p.name}</span>
+              <small className="muted">{[p.category, ...p.styles].join(' · ')}</small>
+            </Link>
+            <StatusToggle value={p.status} onChange={(s) => updatePiece(p.id, { status: s })} />
+            <button type="button" className="icon-btn" aria-label={`Remove ${p.name} from look`} onClick={() => unlinkPiece(look.id, p.id)}>×</button>
+          </li>
+        ))}
+      </ul>
+
+      <PiecePicker lookId={look.id} linkedIds={pieces.map((p) => p.id)} />
+
+      <button
+        type="button"
+        className="btn danger"
+        onClick={async () => {
+          if (!confirm('Delete this look and its photo? Pieces stay in your list. This cannot be undone.')) return
+          await deleteLook(look.id)
+          navigate('/')
+        }}
+      >
+        Delete look
+      </button>
+    </main>
+  )
+}

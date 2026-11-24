@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { CropEditor } from '../components/CropEditor'
-import { Photo } from '../components/Photo'
+import { LookCard } from '../components/LookCard'
 import { useLookSummaries } from '../data/hooks'
 import { createLook } from '../data/repo'
 
@@ -59,20 +59,11 @@ export function Looks() {
       )}
 
       <ul className="grid">
-        {shown.map(({ look, pieces, complete }) => {
-          const wanted = pieces.filter((p) => p.status === 'wanted').length
-          return (
-            <li key={look.id}>
-              <Link to={`/look/${look.id}`} className="look-card">
-                <Photo photoId={look.photoId} alt={look.title || 'Look'} className="thumb" />
-                <div className="look-meta">
-                  <span className="look-title">{look.title || 'Untitled'}</span>
-                  {complete ? <span className="badge owned">Complete</span> : pieces.length === 0 ? <span className="badge">Untagged</span> : <span className="badge wanted">{wanted} wanted</span>}
-                </div>
-              </Link>
-            </li>
-          )
-        })}
+        {shown.map((s) => (
+          <li key={s.look.id}>
+            <LookCard summary={s} />
+          </li>
+        ))}
       </ul>
     </main>
   )

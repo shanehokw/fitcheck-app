@@ -1,9 +1,10 @@
 import { strFromU8, strToU8, unzipSync, zipSync, type Zippable } from 'fflate'
 import { db } from './dexie/db'
-import type { Look, LookPiece, Piece, Setting } from './types'
+import type { Collection, Look, LookCollection, LookPiece, Piece, Setting } from './types'
 
 const FORMAT = 'fitcheck-backup'
-const VERSION = 1
+/** 1: looks, pieces. 2: adds collections. Older backups still import. */
+const VERSION = 2
 
 interface PhotoEntry {
   id: string
@@ -21,11 +22,14 @@ interface BackupData {
   lookPieces: LookPiece[]
   settings: Setting[]
   photos: PhotoEntry[]
+  collections?: Collection[]
+  lookCollections?: LookCollection[]
 }
 
 export interface ImportResult {
   looks: number
   pieces: number
+  collections: number
   photos: number
 }
 
@@ -33,12 +37,14 @@ const EXT: Record<string, string> = { 'image/webp': 'webp', 'image/jpeg': 'jpg',
 
 /** ZIP with data.json + photos/<id>.<ext>. Photos are stored without recompression. */
 export async function exportBackup(): Promise<Blob> {
-  const [looks, pieces, lookPieces, settings, photos] = await Promise.all([
+  const [looks, pieces, lookPieces, settings, photos, collections, lookCollections] = await Promise.all([
     db.looks.toArray(),
     db.pieces.toArray(),
     db.lookPieces.toArray(),
     db.settings.toArray(),
     db.photos.toArray(),
+    db.collections.toArray(),
+    db.lookCollections.toArray(),
   ])
   const files: Zippable = {}
   const photoEntries: PhotoEntry[] = []
@@ -56,6 +62,8 @@ export async function exportBackup(): Promise<Blob> {
     lookPieces,
     settings,
     photos: photoEntries,
+    collections,
+    lookCollections,
   }
   files['data.json'] = [strToU8(JSON.stringify(data)), { level: 6 }]
   return new Blob([zipSync(files) as Uint8Array<ArrayBuffer>], { type: 'application/zip' })
@@ -81,21 +89,28 @@ export async function importBackup(file: Blob, mode: 'replace' | 'merge'): Promi
     if (!Array.isArray(data[k])) throw new Error(`Backup is damaged (${k} missing).`)
   }
 
+  const collections = data.collections ?? []
+  const lookCollections = data.lookCollections ?? []
+  if (!Array.isArray(collections) || !Array.isArray(lookCollections)) throw new Error('Backup is damaged (collections).')
+
   const photos = data.photos.map((p) => {
     const bytes = entries[p.path]
     if (!bytes) throw new Error(`Backup is damaged (photo ${p.path} missing).`)
     return { id: p.id, createdAt: p.createdAt, blob: new Blob([bytes as Uint8Array<ArrayBuffer>], { type: p.type }) }
   })
 
-  await db.transaction('rw', [db.looks, db.pieces, db.lookPieces, db.photos, db.settings], async () => {
+  const tables = [db.looks, db.pieces, db.lookPieces, db.photos, db.settings, db.collections, db.lookCollections]
+  await db.transaction('rw', tables, async () => {
     if (mode === 'replace') {
-      await Promise.all([db.looks.clear(), db.pieces.clear(), db.lookPieces.clear(), db.photos.clear(), db.settings.clear()])
+      await Promise.all(tables.map((t) => t.clear()))
       await db.settings.bulkPut(data.settings)
       await db.looks.bulkPut(data.looks)
       await db.pieces.bulkPut(data.pieces)
+      await db.collections.bulkPut(collections)
     } else {
       await db.looks.bulkPut(await newerOnly(db.looks, data.looks))
       await db.pieces.bulkPut(await newerOnly(db.pieces, data.pieces))
+      await db.collections.bulkPut(await newerOnly(db.collections, collections))
       for (const s of data.settings) {
         const cur = await db.settings.get(s.key)
         if (cur && Array.isArray(cur.value) && Array.isArray(s.value)) {
@@ -107,9 +122,10 @@ export async function importBackup(file: Blob, mode: 'replace' | 'merge'): Promi
     }
     await db.photos.bulkPut(photos)
     await db.lookPieces.bulkPut(data.lookPieces)
+    await db.lookCollections.bulkPut(lookCollections)
   })
 
-  return { looks: data.looks.length, pieces: data.pieces.length, photos: photos.length }
+  return { looks: data.looks.length, pieces: data.pieces.length, collections: collections.length, photos: photos.length }
 }
 
 async function newerOnly<T extends { id: string; updatedAt: number }>(

@@ -1,7 +1,7 @@
 import { isComplete } from '../lib/looks'
 import { db } from './dexie/db'
 import { deletePhoto, putPhoto } from './photos'
-import type { Look, LookSummary, Piece, PieceInput, TagLists } from './types'
+import type { Collection, CollectionSummary, Look, LookSummary, Piece, PieceInput, TagLists } from './types'
 
 const now = () => Date.now()
 const newId = () => crypto.randomUUID()
@@ -35,10 +35,11 @@ export async function updateLook(id: string, patch: Partial<Pick<Look, 'title' |
 }
 
 export async function deleteLook(id: string): Promise<void> {
-  await db.transaction('rw', db.looks, db.lookPieces, db.photos, async () => {
+  await db.transaction('rw', [db.looks, db.lookPieces, db.lookCollections, db.photos], async () => {
     const look = await db.looks.get(id)
     if (!look) return
     await db.lookPieces.where('lookId').equals(id).delete()
+    await db.lookCollections.where('lookId').equals(id).delete()
     await deletePhoto(look.photoId)
     await db.looks.delete(id)
   })
@@ -158,4 +159,87 @@ export async function replaceLookPhoto(lookId: string, photo: Blob): Promise<voi
     await db.looks.update(lookId, { photoId, updatedAt: now() })
     await deletePhoto(look.photoId)
   })
+}
+
+// ---------- collections ----------
+
+function cleanName(name: string): string {
+  const n = name.trim()
+  if (!n) throw new Error('Collection name is required')
+  return n
+}
+
+export async function createCollection(input: { name: string; cover?: Blob }): Promise<string> {
+  const id = newId()
+  const t = now()
+  const name = cleanName(input.name)
+  await db.transaction('rw', db.collections, db.photos, async () => {
+    const coverPhotoId = input.cover ? await putPhoto(input.cover) : undefined
+    await db.collections.add({ id, name, coverPhotoId, createdAt: t, updatedAt: t })
+  })
+  return id
+}
+
+export async function renameCollection(id: string, name: string): Promise<void> {
+  await db.collections.update(id, { name: cleanName(name), updatedAt: now() })
+}
+
+/** Set a new cover photo, or pass null to remove it. The old cover photo is deleted. */
+export async function setCollectionCover(id: string, cover: Blob | null): Promise<void> {
+  await db.transaction('rw', db.collections, db.photos, async () => {
+    const c = await db.collections.get(id)
+    if (!c) throw new Error('Collection not found')
+    const coverPhotoId = cover ? await putPhoto(cover) : undefined
+    await db.collections.update(id, { coverPhotoId, updatedAt: now() })
+    if (c.coverPhotoId) await deletePhoto(c.coverPhotoId)
+  })
+}
+
+/** Deletes the collection and its cover photo. Looks stay. */
+export async function deleteCollection(id: string): Promise<void> {
+  await db.transaction('rw', [db.collections, db.lookCollections, db.photos], async () => {
+    const c = await db.collections.get(id)
+    if (!c) return
+    await db.lookCollections.where('collectionId').equals(id).delete()
+    if (c.coverPhotoId) await deletePhoto(c.coverPhotoId)
+    await db.collections.delete(id)
+  })
+}
+
+export async function addLookToCollection(lookId: string, collectionId: string): Promise<void> {
+  await db.lookCollections.put({ lookId, collectionId, createdAt: now() })
+}
+
+export async function removeLookFromCollection(lookId: string, collectionId: string): Promise<void> {
+  await db.lookCollections.delete([lookId, collectionId])
+}
+
+export async function listCollections(): Promise<CollectionSummary[]> {
+  const [collections, links, looks] = await Promise.all([
+    db.collections.orderBy('name').toArray(),
+    db.lookCollections.toArray(),
+    db.looks.toArray(),
+  ])
+  const lookById = new Map(looks.map((l) => [l.id, l]))
+  return collections.map((collection) => {
+    const inIt = links
+      .filter((l) => l.collectionId === collection.id)
+      .map((l) => lookById.get(l.lookId))
+      .filter((l): l is Look => !!l)
+      .sort((a, b) => b.createdAt - a.createdAt)
+    return { collection, lookCount: inIt.length, previewPhotoId: collection.coverPhotoId ?? inIt[0]?.photoId }
+  })
+}
+
+export async function getCollection(id: string): Promise<{ collection: Collection; looks: LookSummary[] } | null> {
+  const collection = await db.collections.get(id)
+  if (!collection) return null
+  const lookIds = new Set((await db.lookCollections.where('collectionId').equals(id).toArray()).map((l) => l.lookId))
+  const looks = (await listLookSummaries()).filter((s) => lookIds.has(s.look.id))
+  return { collection, looks }
+}
+
+/** Ids of the collections a look belongs to. */
+export async function collectionIdsForLook(lookId: string): Promise<string[]> {
+  return (await db.lookCollections.where('lookId').equals(lookId).toArray()).map((l) => l.collectionId)
 }

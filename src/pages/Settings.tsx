@@ -33,10 +33,10 @@ export function Settings() {
 
   async function doImport(mode: 'merge' | 'replace') {
     if (!pending) return
-    if (mode === 'replace' && !confirm('Replace ALL current looks, pieces and photos with the backup? Current data will be deleted. This cannot be undone.')) return
+    if (mode === 'replace' && !confirm('Replace ALL current looks, pieces, collections and photos with the backup? Current data will be deleted. This cannot be undone.')) return
     try {
       const r = await importBackup(pending, mode)
-      setMsg(`Imported ${r.looks} looks, ${r.pieces} pieces, ${r.photos} photos.`)
+      setMsg(`Imported ${r.looks} looks, ${r.pieces} pieces, ${r.collections} collections, ${r.photos} photos.`)
     } catch (e) {
       setMsg((e as Error).message)
     } finally {

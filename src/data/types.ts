@@ -53,3 +53,24 @@ export interface LookSummary {
 
 export type PieceInput = Pick<Piece, 'name' | 'category' | 'styles' | 'status'> &
   Partial<Pick<Piece, 'productUrl' | 'savedPrice'>>
+
+export interface Collection {
+  id: string
+  name: string
+  coverPhotoId?: string
+  createdAt: number
+  updatedAt: number
+}
+
+export interface LookCollection {
+  lookId: string
+  collectionId: string
+  createdAt: number
+}
+
+export interface CollectionSummary {
+  collection: Collection
+  lookCount: number
+  /** Cover photo, or the newest look's photo when there is no cover. */
+  previewPhotoId?: string
+}

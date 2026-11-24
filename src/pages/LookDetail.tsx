@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { CropEditor } from '../components/CropEditor'
+import { LookCollections } from '../components/LookCollections'
 import { Photo } from '../components/Photo'
 import { PiecePicker } from '../components/PiecePicker'
 import { StatusToggle } from '../components/StatusToggle'
@@ -41,7 +42,7 @@ export function LookDetail() {
 
       <div className="stack" key={look.id}>
         <label className="field">
-          <span>Title</span>
+          <span>Name (optional)</span>
           <input defaultValue={look.title} placeholder="Office Monday" onBlur={(e) => e.target.value !== look.title && updateLook(look.id, { title: e.target.value })} />
         </label>
         <label className="field">
@@ -66,6 +67,9 @@ export function LookDetail() {
       </ul>
 
       <PiecePicker lookId={look.id} linkedIds={pieces.map((p) => p.id)} />
+
+      <h2>Collections</h2>
+      <LookCollections lookId={look.id} />
 
       <button
         type="button"

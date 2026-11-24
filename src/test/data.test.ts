@@ -115,3 +115,17 @@ describe('backup', () => {
     await expect(importBackup(new Blob(['nope']), 'merge')).rejects.toThrow(/valid backup/)
   })
 })
+
+describe('replaceLookPhoto', () => {
+  it('swaps the photo and deletes the old one', async () => {
+    const { replaceLookPhoto } = await import('../data/repo')
+    const l = await createLook({ photo: photo('old') })
+    const oldId = (await getLook(l))!.look.photoId
+    await replaceLookPhoto(l, photo('new'))
+    const look = (await getLook(l))!.look
+    expect(look.photoId).not.toBe(oldId)
+    expect(await getPhoto(oldId)).toBeUndefined()
+    expect(new TextDecoder().decode(await (await getPhoto(look.photoId))!.arrayBuffer())).toBe('new')
+    expect(await db.photos.count()).toBe(1)
+  })
+})

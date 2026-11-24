@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { CropEditor } from '../components/CropEditor'
 import { Photo } from '../components/Photo'
 import { useLookSummaries } from '../data/hooks'
 import { createLook } from '../data/repo'
-import { compressImage } from '../lib/image'
 
 type Filter = 'all' | 'complete' | 'incomplete'
 
@@ -12,28 +12,29 @@ export function Looks() {
   const [filter, setFilter] = useState<Filter>('all')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
+  const [toCrop, setToCrop] = useState<Blob>()
   const input = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
 
   async function onFile(file?: File) {
     if (!file) return
-    setBusy(true)
     setError(undefined)
-    try {
-      const id = await createLook({ photo: await compressImage(file) })
-      navigate(`/look/${id}`)
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setBusy(false)
-      if (input.current) input.current.value = ''
-    }
+    setToCrop(file)
+    if (input.current) input.current.value = ''
+  }
+
+  async function saveLook(photo: Blob) {
+    setBusy(true)
+    const id = await createLook({ photo }).finally(() => setBusy(false))
+    setToCrop(undefined)
+    navigate(`/look/${id}`)
   }
 
   const shown = (looks ?? []).filter((l) => filter === 'all' || (filter === 'complete') === l.complete)
 
   return (
     <main className="page">
+      {toCrop && <CropEditor image={toCrop} onDone={saveLook} onCancel={() => setToCrop(undefined)} />}
       <header className="page-head">
         <h1>Looks</h1>
         <label className={`btn primary ${busy ? 'disabled' : ''}`}>

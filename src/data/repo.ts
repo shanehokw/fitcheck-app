@@ -146,3 +146,16 @@ export async function setTagList(kind: keyof TagLists, values: string[]): Promis
   const clean = [...new Set(values.map((v) => v.trim().toLowerCase()).filter(Boolean))]
   await setSetting(kind, clean)
 }
+
+// ---------- photo replacement ----------
+
+/** Swap a look's photo (for example after cropping). The old photo is deleted. */
+export async function replaceLookPhoto(lookId: string, photo: Blob): Promise<void> {
+  await db.transaction('rw', db.looks, db.photos, async () => {
+    const look = await db.looks.get(lookId)
+    if (!look) throw new Error('Look not found')
+    const photoId = await putPhoto(photo)
+    await db.looks.update(lookId, { photoId, updatedAt: now() })
+    await deletePhoto(look.photoId)
+  })
+}

@@ -1,14 +1,18 @@
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { CropEditor } from '../components/CropEditor'
 import { Photo } from '../components/Photo'
 import { PiecePicker } from '../components/PiecePicker'
 import { StatusToggle } from '../components/StatusToggle'
-import { useLook } from '../data/hooks'
-import { deleteLook, unlinkPiece, updateLook, updatePiece } from '../data/repo'
+import { useLook, usePhotoBlob } from '../data/hooks'
+import { deleteLook, replaceLookPhoto, unlinkPiece, updateLook, updatePiece } from '../data/repo'
 
 export function LookDetail() {
   const { id = '' } = useParams()
   const data = useLook(id)
   const navigate = useNavigate()
+  const [cropping, setCropping] = useState(false)
+  const photoBlob = usePhotoBlob(data?.look.photoId)
 
   if (data === undefined) return <main className="page" />
   if (data === null) return <main className="page"><p className="empty">Look not found. <Link to="/">Back to looks</Link></p></main>
@@ -22,7 +26,18 @@ export function LookDetail() {
         {complete && <span className="badge owned">Complete</span>}
       </header>
 
-      <Photo photoId={look.photoId} alt={look.title || 'Look'} className="hero" />
+      <div className="hero-wrap">
+        <Photo photoId={look.photoId} alt={look.title || 'Look'} className="hero" />
+        {photoBlob && <button type="button" className="btn small" onClick={() => setCropping(true)}>Crop</button>}
+      </div>
+      {cropping && photoBlob && (
+        <CropEditor
+          image={photoBlob}
+          requireChange
+          onCancel={() => setCropping(false)}
+          onDone={async (b) => { await replaceLookPhoto(look.id, b); setCropping(false) }}
+        />
+      )}
 
       <div className="stack" key={look.id}>
         <label className="field">

@@ -11,8 +11,11 @@ export const usePiece = (id: string) => useLiveQuery(() => getPiece(id), [id])
 export const useTagLists = () => useLiveQuery(getTagLists, [])
 export const useSetting = <T,>(key: string, fallback: T) => useLiveQuery(() => getSetting(key, fallback), [key])
 
+export const usePhotoBlob = (photoId?: string) =>
+  useLiveQuery(() => (photoId ? getPhoto(photoId) : undefined), [photoId])
+
 export function usePhotoUrl(photoId?: string): string | undefined {
-  const blob = useLiveQuery(() => (photoId ? getPhoto(photoId) : undefined), [photoId])
+  const blob = usePhotoBlob(photoId)
   const [url, setUrl] = useState<string>()
   useEffect(() => {
     if (!blob) {

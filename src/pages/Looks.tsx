@@ -1,9 +1,11 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CropEditor } from '../components/CropEditor'
 import { LookCard } from '../components/LookCard'
+import { PasteButton } from '../components/PasteButton'
 import { useLookSummaries } from '../data/hooks'
 import { createLook } from '../data/repo'
+import { imageFromPaste } from '../lib/clipboard'
 
 type Filter = 'all' | 'complete' | 'incomplete'
 
@@ -23,6 +25,20 @@ export function Looks() {
     if (input.current) input.current.value = ''
   }
 
+  // Cmd/Ctrl+V anywhere on this page starts a new look from a copied photo.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (toCrop || busy) return
+      const img = imageFromPaste(e)
+      if (!img) return
+      e.preventDefault()
+      setError(undefined)
+      setToCrop(img)
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [toCrop, busy])
+
   async function saveLook(photo: Blob) {
     setBusy(true)
     const id = await createLook({ photo }).finally(() => setBusy(false))
@@ -37,10 +53,13 @@ export function Looks() {
       {toCrop && <CropEditor image={toCrop} onDone={saveLook} onCancel={() => setToCrop(undefined)} />}
       <header className="page-head">
         <h1>Looks</h1>
-        <label className={`btn primary ${busy ? 'disabled' : ''}`}>
-          {busy ? 'Saving…' : '+ Add look'}
-          <input ref={input} type="file" accept="image/*" hidden disabled={busy} onChange={(e) => onFile(e.target.files?.[0])} />
-        </label>
+        <div className="row">
+          <PasteButton disabled={busy} onImage={(b) => { setError(undefined); setToCrop(b) }} onError={setError} />
+          <label className={`btn primary ${busy ? 'disabled' : ''}`}>
+            {busy ? 'Saving…' : '+ Add look'}
+            <input ref={input} type="file" accept="image/*" hidden disabled={busy} onChange={(e) => onFile(e.target.files?.[0])} />
+          </label>
+        </div>
       </header>
       {error && <p className="error">{error}</p>}
 

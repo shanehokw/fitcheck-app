@@ -6,7 +6,7 @@ import { Photo } from '../components/Photo'
 import { PiecePicker } from '../components/PiecePicker'
 import { StatusToggle } from '../components/StatusToggle'
 import { useLook, usePhotoBlob } from '../data/hooks'
-import { deleteLook, replaceLookPhoto, unlinkPiece, updateLook, updatePiece } from '../data/repo'
+import { deleteLook, replaceLookPhoto, unlinkPiece, updatePiece } from '../data/repo'
 
 export function LookDetail() {
   const { id = '' } = useParams()
@@ -28,7 +28,7 @@ export function LookDetail() {
       </header>
 
       <div className="hero-wrap">
-        <Photo photoId={look.photoId} alt={look.title || 'Look'} className="hero" />
+        <Photo photoId={look.photoId} alt="Look" className="hero" />
         {photoBlob && <button type="button" className="btn small" onClick={() => setCropping(true)}>Crop</button>}
       </div>
       {cropping && photoBlob && (
@@ -39,17 +39,6 @@ export function LookDetail() {
           onDone={async (b) => { await replaceLookPhoto(look.id, b); setCropping(false) }}
         />
       )}
-
-      <div className="stack" key={look.id}>
-        <label className="field">
-          <span>Name (optional)</span>
-          <input defaultValue={look.title} placeholder="Office Monday" onBlur={(e) => e.target.value !== look.title && updateLook(look.id, { title: e.target.value })} />
-        </label>
-        <label className="field">
-          <span>Notes</span>
-          <textarea defaultValue={look.notes} rows={2} onBlur={(e) => e.target.value !== look.notes && updateLook(look.id, { notes: e.target.value })} />
-        </label>
-      </div>
 
       <h2>Pieces ({pieces.length})</h2>
       {pieces.length === 0 && <p className="muted">Tag each piece in this look. Pieces are shared across looks.</p>}

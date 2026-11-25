@@ -24,18 +24,14 @@ export const DEFAULT_TAGS: TagLists = {
 
 // ---------- looks ----------
 
-export async function createLook(input: { photo: Blob; title?: string; notes?: string }): Promise<string> {
+export async function createLook(input: { photo: Blob }): Promise<string> {
   const id = newId()
   const t = now()
   await db.transaction('rw', db.looks, db.photos, async () => {
     const photoId = await putPhoto(input.photo)
-    await db.looks.add({ id, photoId, title: input.title ?? '', notes: input.notes ?? '', createdAt: t, updatedAt: t })
+    await db.looks.add({ id, photoId, createdAt: t, updatedAt: t })
   })
   return id
-}
-
-export async function updateLook(id: string, patch: Partial<Pick<Look, 'title' | 'notes'>>): Promise<void> {
-  await db.looks.update(id, { ...patch, updatedAt: now() })
 }
 
 export async function deleteLook(id: string): Promise<void> {

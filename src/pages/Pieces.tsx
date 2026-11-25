@@ -181,7 +181,7 @@ export function PieceDetail() {
         {looks.map((l) => (
           <li key={l.id}>
             <Link to={`/look/${l.id}`} className="look-card">
-              <Photo photoId={l.photoId} alt={l.title || 'Look'} className="thumb" />
+              <Photo photoId={l.photoId} alt="Look" className="thumb" />
             </Link>
           </li>
         ))}

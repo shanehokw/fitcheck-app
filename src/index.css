@@ -229,3 +229,4 @@ input:not([type=file]), select, textarea {
 .banner + .banner { padding-top: 12px; border-top: 1px solid var(--line); }
 .banner-actions { flex: none; flex-wrap: nowrap; }
 @media (max-width: 480px) { .banner:has(.banner-actions) { flex-direction: column; align-items: stretch; } }
+.full-row { flex-basis: 100%; margin: 0; }

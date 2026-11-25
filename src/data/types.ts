@@ -3,8 +3,6 @@ export type Status = 'owned' | 'wanted'
 export interface Look {
   id: string
   photoId: string
-  title: string
-  notes: string
   createdAt: number
   updatedAt: number
 }

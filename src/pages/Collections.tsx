@@ -181,7 +181,7 @@ function AddLooksSheet({ collectionId, existing, onClose }: { collectionId: stri
                 type="button"
                 className={`pick ${picked.includes(s.look.id) ? 'on' : ''}`}
                 aria-pressed={picked.includes(s.look.id)}
-                aria-label={s.look.title || 'Look'}
+                aria-label="Look"
                 onClick={() => toggle(s.look.id)}
               >
                 <Photo photoId={s.look.photoId} alt="" className="thumb" />

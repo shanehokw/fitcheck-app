@@ -7,9 +7,8 @@ export function LookCard({ summary }: { summary: LookSummary }) {
   const wanted = pieces.filter((p) => p.status === 'wanted').length
   return (
     <Link to={`/look/${look.id}`} className="look-card">
-      <Photo photoId={look.photoId} alt={look.title || 'Look'} className="thumb" />
+      <Photo photoId={look.photoId} alt="Look" className="thumb" />
       <div className="look-meta">
-        {look.title && <span className="look-title">{look.title}</span>}
         {complete ? (
           <span className="badge owned">Complete</span>
         ) : pieces.length === 0 ? (

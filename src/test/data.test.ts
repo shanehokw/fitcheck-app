@@ -90,7 +90,7 @@ describe('computeStats', () => {
 
 describe('backup', () => {
   it('round-trips data and photo bytes (replace)', async () => {
-    const l = await createLook({ photo: photo('hello-photo'), title: 'Office' })
+    const l = await createLook({ photo: photo('hello-photo') })
     const p = await piece('Pencil skirt', 'skirt', ['pencil'])
     await linkPiece(l, p)
     const zip = await exportBackup()
@@ -100,7 +100,6 @@ describe('backup', () => {
     expect(res).toEqual({ looks: 1, pieces: 1, collections: 0, photos: 1 })
 
     const back = (await getLook(l))!
-    expect(back.look.title).toBe('Office')
     expect(back.pieces[0].name).toBe('Pencil skirt')
     const blob = (await getPhoto(back.look.photoId))!
     expect(new TextDecoder().decode(await blob.arrayBuffer())).toBe('hello-photo')

@@ -8,7 +8,9 @@ import {
 } from '../data/repo'
 import { createCollection, listCollections, reorderCollections, reorderPieces } from '../data/repo'
 import { isComplete } from '../lib/looks'
-import { EMPTY_FILTER, filterFromParams, filterOptions, filterToParams, matchesFilter, type PieceFilter } from '../lib/pieceFilter'
+import {
+  EMPTY_FILTER, filterFromParams, filterOptions, filterToParams, matchesFilter, suggestBrands, type PieceFilter,
+} from '../lib/pieceFilter'
 import { moveWithin } from '../lib/sortable'
 import { computeStats } from '../lib/stats'
 
@@ -307,5 +309,17 @@ describe('piece filters', () => {
   it('round-trips through the address', () => {
     const x = f({ q: 'tee', status: 'wanted', brand: 'Uniqlo', styles: ['a', 'b'] })
     expect(filterFromParams(filterToParams(x))).toEqual(x)
+  })
+})
+
+describe('suggestBrands', () => {
+  const brands = ['Uniqlo', 'Cos', 'Arket', 'Mango', 'Zara', 'Converse', 'Cotton On']
+  it('prefix matches first, then contains; max 3; any case', () => {
+    expect(suggestBrands(brands, 'co')).toEqual(['Cos', 'Converse', 'Cotton On'])
+    expect(suggestBrands(brands, 'AR')).toEqual(['Arket', 'Zara'])
+  })
+  it('nothing for empty text or an exact match only', () => {
+    expect(suggestBrands(brands, '  ')).toEqual([])
+    expect(suggestBrands(brands, 'zara')).toEqual([])
   })
 })

@@ -217,3 +217,12 @@ input:not([type=file]), select, textarea {
 .link-btn { border: 0; background: none; padding: 8px 0; color: var(--accent); cursor: pointer; text-decoration: underline; }
 .icon-btn.danger-icon { color: var(--danger); display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; }
 .icon-btn.danger-icon:hover { background: var(--line); }
+
+/* brand suggestions */
+.combo { position: relative; }
+.combo-list {
+  position: absolute; z-index: 10; top: calc(100% + 4px); left: 0; right: 0; margin: 0; padding: 4px; list-style: none;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 18px rgb(0 0 0 / 0.12);
+}
+.combo-list li { padding: 10px 12px; min-height: 44px; display: flex; align-items: center; border-radius: 8px; cursor: pointer; }
+.combo-list li:hover, .combo-list li.on { background: var(--line); }

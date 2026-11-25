@@ -3,6 +3,7 @@ import { useTagLists } from '../data/hooks'
 import { setTagList } from '../data/repo'
 import type { PieceInput } from '../data/types'
 import { findProduct, isHttpUrl } from '../lib/productPhotos'
+import { BrandInput } from './BrandInput'
 import { PiecePhotoField } from './PiecePhotoField'
 import { StatusToggle } from './StatusToggle'
 
@@ -14,9 +15,11 @@ interface Props {
   /** photo: Blob = new photo, null = removed, undefined = unchanged. */
   onSubmit: (p: PieceInput, photo: Blob | null | undefined) => void | Promise<void>
   onCancel?: () => void
+  /** Focus the first field on open. Off when editing a saved piece. */
+  autoFocus?: boolean
 }
 
-export function PieceForm({ initial, initialPhotoId, submitLabel, onSubmit, onCancel }: Props) {
+export function PieceForm({ initial, initialPhotoId, submitLabel, onSubmit, onCancel, autoFocus = true }: Props) {
   const tags = useTagLists()
   const [name, setName] = useState(initial?.name ?? '')
   const [brand, setBrand] = useState(initial?.brand ?? '')
@@ -98,16 +101,17 @@ export function PieceForm({ initial, initialPhotoId, submitLabel, onSubmit, onCa
             if (!productUrl.trim() && isHttpUrl(pasted)) void fillFromLink(pasted)
           }}
           placeholder="https://…"
+          autoFocus={autoFocus}
         />
         {linkNote && <small className={linkNote.error ? 'error' : 'muted'}>{linkNote.text}</small>}
       </label>
       <label className="field">
         <span>Name</span>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Black pencil skirt" required autoFocus={!initial?.name} />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Black pencil skirt" required />
       </label>
       <label className="field">
         <span>Brand (optional)</span>
-        <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Uniqlo" autoComplete="off" />
+        <BrandInput value={brand} onChange={setBrand} />
       </label>
       <label className="field">
         <span>Category</span>

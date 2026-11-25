@@ -63,3 +63,16 @@ export function filterToParams(f: PieceFilter): URLSearchParams {
   for (const s of f.styles) sp.append('style', s)
   return sp
 }
+
+/**
+ * Brand suggestions while typing: names starting with the text first, then names containing it.
+ * Case-insensitive. An exact match is left out (nothing to complete).
+ */
+export function suggestBrands(brands: string[], typed: string, limit = 3): string[] {
+  const q = typed.trim().toLowerCase()
+  if (!q) return []
+  const others = brands.filter((b) => b.toLowerCase() !== q)
+  const starts = others.filter((b) => b.toLowerCase().startsWith(q))
+  const contains = others.filter((b) => !b.toLowerCase().startsWith(q) && b.toLowerCase().includes(q))
+  return [...starts, ...contains].slice(0, limit)
+}

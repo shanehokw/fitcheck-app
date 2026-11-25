@@ -172,6 +172,7 @@ export function PieceDetail() {
         key={piece.id}
         initial={piece}
         initialPhotoId={piece.photoId}
+        autoFocus={false}
         submitLabel={saved ? 'Saved ✓' : 'Save'}
         onSubmit={async (p, photo) => { await updatePiece(piece.id, p, photo); setSaved(true); setTimeout(() => setSaved(false), 1500) }}
       />

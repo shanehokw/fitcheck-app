@@ -1,4 +1,5 @@
 import { HashRouter, NavLink, Route, Routes } from 'react-router-dom'
+import { BackupReminder } from './components/BackupReminder'
 import { InstallBanner } from './components/InstallBanner'
 import { CollectionDetail, Collections, NewCollection } from './pages/Collections'
 import { LookDetail } from './pages/LookDetail'
@@ -11,6 +12,7 @@ export default function App() {
   return (
     <HashRouter>
       <InstallBanner />
+      <BackupReminder />
       <Routes>
         <Route path="/" element={<Looks />} />
         <Route path="/look/:id" element={<LookDetail />} />

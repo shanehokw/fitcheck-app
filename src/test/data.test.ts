@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { exportBackup, importBackup } from '../data/backup'
+import { backupStatus, exportBackup, importBackup, isBackupDue, markBackedUp } from '../data/backup'
 import { db } from '../data/dexie/db'
 import { getPhoto } from '../data/photos'
 import {
@@ -321,5 +321,39 @@ describe('suggestBrands', () => {
   it('nothing for empty text or an exact match only', () => {
     expect(suggestBrands(brands, '  ')).toEqual([])
     expect(suggestBrands(brands, 'zara')).toEqual([])
+  })
+})
+
+describe('backup reminder', () => {
+  const DAY = 86_400_000
+  it('rule: 7+ days since last backup (or oldest data), or 10+ added; snooze hides', () => {
+    const now = 100 * DAY
+    expect(isBackupDue({ now, added: 0 })).toBe(false) // no data
+    expect(isBackupDue({ now, oldestAt: now - 2 * DAY, added: 3 })).toBe(false)
+    expect(isBackupDue({ now, oldestAt: now - 8 * DAY, added: 3 })).toBe(true) // never backed up, old data
+    expect(isBackupDue({ now, lastAt: now - 6 * DAY, added: 9 })).toBe(false)
+    expect(isBackupDue({ now, lastAt: now - 6 * DAY, added: 10 })).toBe(true)
+    expect(isBackupDue({ now, lastAt: now - 8 * DAY, added: 0 })).toBe(true)
+    expect(isBackupDue({ now, lastAt: now - 8 * DAY, added: 0, snoozedUntil: now + 1 })).toBe(false)
+  })
+
+  it('counts looks and pieces added after the last backup', async () => {
+    await piece('Old', 'top', [])
+    await markBackedUp(Date.now() + 1)
+    await new Promise((r) => setTimeout(r, 5))
+    for (let i = 0; i < 6; i++) await createLook({ photo: photo() })
+    for (let i = 0; i < 4; i++) await piece(`P${i}`, 'top', [])
+    const st = await backupStatus()
+    expect(st.added).toBe(10)
+    expect(st.due).toBe(true)
+  })
+
+  it('device settings are not exported and survive a replace import', async () => {
+    await markBackedUp(123)
+    await piece('A', 'top', [])
+    const zip = await exportBackup()
+    await markBackedUp(456)
+    await importBackup(new File([zip], 'b.zip'), 'replace')
+    expect((await db.settings.get('lastBackupAt'))?.value).toBe(456)
   })
 })

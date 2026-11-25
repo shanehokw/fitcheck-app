@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { TagListEditor } from '../components/TagListEditor'
-import { exportBackup, importBackup } from '../data/backup'
+import { importBackup } from '../data/backup'
 import { useTagLists } from '../data/hooks'
-import { isIOS, requestPersist, storageStatus } from '../lib/platform'
+import { saveBackupFile } from '../lib/backupFile'
+import { requestPersist, storageStatus } from '../lib/platform'
 
 export function Settings() {
   const tags = useTagLists()
@@ -16,19 +17,12 @@ export function Settings() {
 
   async function doExport() {
     setMsg(undefined)
-    const blob = await exportBackup()
-    const name = `fitcheck-backup-${new Date().toISOString().slice(0, 10)}.zip`
-    const file = new File([blob], name, { type: 'application/zip' })
-    if (isIOS() && navigator.canShare?.({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: name }); return } catch { /* cancelled; fall back */ }
+    try {
+      const name = await saveBackupFile()
+      if (name) setMsg(`Exported ${name}. Keep it private: it contains all your photos.`)
+    } catch (e) {
+      setMsg((e as Error).message)
     }
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = name
-    a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 10_000)
-    setMsg(`Exported ${name}. Keep it private: it contains all your photos.`)
   }
 
   async function doImport(mode: 'merge' | 'replace') {

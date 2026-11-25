@@ -215,3 +215,5 @@ input:not([type=file]), select, textarea {
 .field.grow { flex: 1 1 140px; min-width: 0; }
 .filter-summary { justify-content: space-between; }
 .link-btn { border: 0; background: none; padding: 8px 0; color: var(--accent); cursor: pointer; text-decoration: underline; }
+.icon-btn.danger-icon { color: var(--danger); display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; }
+.icon-btn.danger-icon:hover { background: var(--line); }

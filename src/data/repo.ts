@@ -4,6 +4,10 @@ import { deletePhoto, putPhoto } from './photos'
 import type { Collection, CollectionSummary, Look, LookSummary, Piece, PieceInput, TagLists } from './types'
 
 const now = () => Date.now()
+
+/** Manual order first (sortOrder), then rows never reordered, by name. */
+const byManualOrder = <T extends { sortOrder?: number; name: string }>(a: T, b: T) =>
+  (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity) || a.name.localeCompare(b.name)
 const newId = () => crypto.randomUUID()
 
 export const DEFAULT_TAGS: TagLists = {
@@ -117,10 +121,19 @@ export async function getPiece(id: string): Promise<{ piece: Piece; looks: Look[
 }
 
 export async function listPieces(): Promise<(Piece & { lookCount: number })[]> {
-  const [pieces, links] = await Promise.all([db.pieces.orderBy('name').toArray(), db.lookPieces.toArray()])
+  const [pieces, links] = await Promise.all([db.pieces.toArray(), db.lookPieces.toArray()])
+  pieces.sort(byManualOrder)
   const counts = new Map<string, number>()
   for (const l of links) counts.set(l.pieceId, (counts.get(l.pieceId) ?? 0) + 1)
   return pieces.map((p) => ({ ...p, lookCount: counts.get(p.id) ?? 0 }))
+}
+
+/** Saves the given order: ids[0] first. Ids not listed keep their place after these. */
+export async function reorderPieces(ids: string[]): Promise<void> {
+  const t = now()
+  await db.transaction('rw', db.pieces, async () => {
+    for (const [i, id] of ids.entries()) await db.pieces.update(id, { sortOrder: i, updatedAt: t })
+  })
 }
 
 export async function linkPiece(lookId: string, pieceId: string): Promise<void> {
@@ -134,6 +147,7 @@ export async function unlinkPiece(lookId: string, pieceId: string): Promise<void
 function cleanPiece<T extends Partial<PieceInput>>(p: T): T {
   const out = { ...p }
   if (out.name !== undefined) out.name = out.name.trim()
+  if (out.brand !== undefined) out.brand = out.brand.trim() || undefined
   if (out.styles) out.styles = [...new Set(out.styles)]
   if (out.productUrl !== undefined) out.productUrl = out.productUrl.trim() || undefined
   return out
@@ -220,6 +234,14 @@ export async function deleteCollection(id: string): Promise<void> {
   })
 }
 
+/** Saves the given order: ids[0] first. */
+export async function reorderCollections(ids: string[]): Promise<void> {
+  const t = now()
+  await db.transaction('rw', db.collections, async () => {
+    for (const [i, id] of ids.entries()) await db.collections.update(id, { sortOrder: i, updatedAt: t })
+  })
+}
+
 export async function addLookToCollection(lookId: string, collectionId: string): Promise<void> {
   await db.lookCollections.put({ lookId, collectionId, createdAt: now() })
 }
@@ -230,10 +252,11 @@ export async function removeLookFromCollection(lookId: string, collectionId: str
 
 export async function listCollections(): Promise<CollectionSummary[]> {
   const [collections, links, looks] = await Promise.all([
-    db.collections.orderBy('name').toArray(),
+    db.collections.toArray(),
     db.lookCollections.toArray(),
     db.looks.toArray(),
   ])
+  collections.sort(byManualOrder)
   const lookById = new Map(looks.map((l) => [l.id, l]))
   return collections.map((collection) => {
     const inIt = links

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { extractImageUrls, shopifyJsonUrl } from './extract.js'
+import { extractDetails, extractImageUrls, shopifyJsonUrl } from './extract.js'
 import { createImageHandler, createProductHandler, MAX_IMAGE, resetRateLimit } from './handlers.js'
 import { isPrivateIp, validateTargetUrl } from './net.js'
 
@@ -45,6 +45,24 @@ describe('extractImageUrls', () => {
   it('detects Shopify product JSON', () => {
     expect(shopifyJsonUrl('<script src="https://cdn.shopify.com/x.js">', page)).toBe('https://shop.example.com/products/skirt.json')
     expect(shopifyJsonUrl('<html>', page)).toBeNull()
+  })
+})
+
+describe('extractDetails', () => {
+  it('prefers JSON-LD Product name and brand object', () => {
+    const html = `<script type="application/ld+json">{"@graph":[{"@type":"Product","name":"Linen &amp; Cotton Shirt","brand":{"@type":"Brand","name":"Acme"}}]}</script>
+      <meta property="og:title" content="Other">`
+    expect(extractDetails(html)).toEqual({ name: 'Linen & Cotton Shirt', brand: 'Acme' })
+  })
+
+  it('falls back to meta tags and strips the site name from og:title', () => {
+    const html = `<meta property="og:title" content="Wide Leg Jeans | Denim Co"><meta property="og:site_name" content="Denim Co">
+      <meta property="product:brand" content="Denim Co">`
+    expect(extractDetails(html)).toEqual({ name: 'Wide Leg Jeans', brand: 'Denim Co' })
+  })
+
+  it('returns nothing when the page has no product data', () => {
+    expect(extractDetails('<html><title>x</title></html>')).toEqual({ name: undefined, brand: undefined })
   })
 })
 
@@ -98,12 +116,16 @@ describe('product handler', () => {
         'https://shop.example.com/products/skirt?variant=1': () =>
           new Response('<script src="//cdn.shopify.com/s.js"></script><meta property="og:image" content="https://cdn.example.com/og.jpg">', { headers: { 'content-type': 'text/html' } }),
         'https://shop.example.com/products/skirt.json': () =>
-          Response.json({ product: { images: [{ src: 'https://cdn.shopify.com/1.jpg' }, { src: 'https://cdn.shopify.com/2.jpg' }] } }),
+          Response.json({ product: { title: 'Pleated Skirt', vendor: 'Acme', images: [{ src: 'https://cdn.shopify.com/1.jpg' }, { src: 'https://cdn.shopify.com/2.jpg' }] } }),
       }),
     })
     const res = await handler(req('/api/product', page.toString()))
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ images: ['https://cdn.shopify.com/1.jpg', 'https://cdn.shopify.com/2.jpg', 'https://cdn.example.com/og.jpg'] })
+    expect(await res.json()).toEqual({
+      images: ['https://cdn.shopify.com/1.jpg', 'https://cdn.shopify.com/2.jpg', 'https://cdn.example.com/og.jpg'],
+      name: 'Pleated Skirt',
+      brand: 'Acme',
+    })
   })
 
   it('reads only the start of very large pages', async () => {

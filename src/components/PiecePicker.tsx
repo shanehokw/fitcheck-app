@@ -12,7 +12,7 @@ export function PiecePicker({ lookId, linkedIds }: { lookId: string; linkedIds: 
   const q = query.trim().toLowerCase()
   const matches = (pieces ?? [])
     .filter((p) => !linkedIds.includes(p.id))
-    .filter((p) => !q || p.name.toLowerCase().includes(q) || p.category.includes(q) || p.styles.some((s) => s.includes(q)))
+    .filter((p) => !q || p.name.toLowerCase().includes(q) || !!p.brand?.toLowerCase().includes(q) || p.category.includes(q) || p.styles.some((s) => s.includes(q)))
     .slice(0, 8)
 
   if (creating) {
@@ -44,7 +44,7 @@ export function PiecePicker({ lookId, linkedIds }: { lookId: string; linkedIds: 
             <li key={p.id}>
               <button type="button" className="list-btn" onClick={() => linkPiece(lookId, p.id)}>
                 <span className="name-with-thumb">{p.photoId && <Photo photoId={p.photoId} alt="" className="piece-thumb" />}{p.name}</span>
-                <small className="muted">{p.category} · {p.status}</small>
+                <small className="muted">{p.brand ? `${p.brand} · ` : ''}{p.category} · {p.status}</small>
               </button>
             </li>
           ))}

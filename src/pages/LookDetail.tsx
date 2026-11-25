@@ -59,7 +59,7 @@ export function LookDetail() {
             {p.photoId && <Photo photoId={p.photoId} alt="" className="piece-thumb" />}
             <Link to={`/pieces/${p.id}`} className="piece-info">
               <span>{p.name}</span>
-              <small className="muted">{[p.category, ...p.styles].join(' · ')}</small>
+              <small className="muted">{[p.brand, p.category, ...p.styles].filter(Boolean).join(' · ')}</small>
             </Link>
             <StatusToggle value={p.status} onChange={(s) => updatePiece(p.id, { status: s })} />
             <button type="button" className="icon-btn" aria-label={`Remove ${p.name} from look`} onClick={() => unlinkPiece(look.id, p.id)}>×</button>

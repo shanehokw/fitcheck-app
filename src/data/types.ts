@@ -12,6 +12,7 @@ export interface Look {
 export interface Piece {
   id: string
   name: string
+  brand?: string
   category: string
   styles: string[]
   status: Status
@@ -19,6 +20,8 @@ export interface Piece {
   savedPrice?: number
   lastCheckedPrice?: number
   photoId?: string
+  /** Manual position in the Pieces list. Unset rows go last, by name. */
+  sortOrder?: number
   createdAt: number
   updatedAt: number
 }
@@ -52,12 +55,14 @@ export interface LookSummary {
 }
 
 export type PieceInput = Pick<Piece, 'name' | 'category' | 'styles' | 'status'> &
-  Partial<Pick<Piece, 'productUrl' | 'savedPrice'>>
+  Partial<Pick<Piece, 'brand' | 'productUrl' | 'savedPrice'>>
 
 export interface Collection {
   id: string
   name: string
   coverPhotoId?: string
+  /** Manual position in the Collections list. Unset rows go last, by name. */
+  sortOrder?: number
   createdAt: number
   updatedAt: number
 }

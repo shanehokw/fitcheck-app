@@ -3,13 +3,26 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { CoverPicker } from '../components/CoverPicker'
 import { LookCard } from '../components/LookCard'
 import { Photo } from '../components/Photo'
+import { DragHandle, SortableArea } from '../components/Sortable'
+import { moveWithin, useOptimisticOrder, useSortableRow } from '../lib/sortable'
 import { useCollection, useCollections, useLookSummaries } from '../data/hooks'
 import {
-  addLookToCollection, createCollection, deleteCollection, removeLookFromCollection, renameCollection, setCollectionCover,
+  addLookToCollection, createCollection, deleteCollection, removeLookFromCollection, renameCollection, reorderCollections,
+  setCollectionCover,
 } from '../data/repo'
+import type { CollectionSummary } from '../data/types'
 
 export function Collections() {
   const collections = useCollections()
+  const { ordered, show } = useOptimisticOrder(collections, (c) => c.collection.id)
+  const ids = (ordered ?? []).map((c) => c.collection.id)
+
+  function onMove(activeId: string, overId: string) {
+    const next = moveWithin(ids, ids, activeId, overId)
+    show(next)
+    void reorderCollections(next)
+  }
+
   return (
     <main className="page">
       <header className="page-head">
@@ -19,20 +32,28 @@ export function Collections() {
       {collections && collections.length === 0 && (
         <p className="empty">No collections yet. Group looks by trip, season, or occasion.</p>
       )}
-      <ul className="grid">
-        {collections?.map(({ collection, lookCount, previewPhotoId }) => (
-          <li key={collection.id}>
-            <Link to={`/collections/${collection.id}`} className="look-card">
-              <Photo photoId={previewPhotoId} alt="" className="thumb" />
-              <div className="look-meta">
-                <span className="look-title">{collection.name}</span>
-                <span className="badge">{lookCount}</span>
-              </div>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <SortableArea ids={ids} layout="grid" onMove={onMove}>
+        <ul className="grid">
+          {ordered?.map((c) => <CollectionCard key={c.collection.id} summary={c} canDrag={ids.length > 1} />)}
+        </ul>
+      </SortableArea>
     </main>
+  )
+}
+
+function CollectionCard({ summary: { collection, lookCount, previewPhotoId }, canDrag }: { summary: CollectionSummary; canDrag: boolean }) {
+  const row = useSortableRow(collection.id)
+  return (
+    <li ref={row.ref} style={row.style} className={`card-wrap ${row.isDragging ? 'dragging' : ''}`}>
+      <Link to={`/collections/${collection.id}`} className="look-card">
+        <Photo photoId={previewPhotoId} alt="" className="thumb" />
+        <div className="look-meta">
+          <span className="look-title">{collection.name}</span>
+          <span className="badge">{lookCount}</span>
+        </div>
+      </Link>
+      {canDrag && <DragHandle label={collection.name} className="card-handle" handle={row.handle} />}
+    </li>
   )
 }
 

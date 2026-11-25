@@ -1,6 +1,6 @@
 // Request handlers using standard Request/Response, so they run on Vercel now and on
 // other hosts later. Nothing is logged or stored.
-import { extractImageUrls, normalize, shopifyImages, shopifyJsonUrl } from './extract.js'
+import { extractDetails, extractImageUrls, normalize, shopifyDetails, shopifyImages, shopifyJsonUrl, type ProductDetails } from './extract.js'
 import { FetchBlockedError, readLimited, safeFetch, TooLargeError, type ResolveHost } from './net.js'
 
 export interface Deps {
@@ -80,7 +80,7 @@ function failure(e: unknown): Response {
   return json(502, { error: 'Could not reach the store' })
 }
 
-// ---- POST /api/product {url} → {images: string[]} ----
+// ---- POST /api/product {url} → {images: string[], name?, brand?} ----
 
 export function createProductHandler(deps: Deps) {
   return async (req: Request): Promise<Response> => {
@@ -101,17 +101,26 @@ export function createProductHandler(deps: Deps) {
       }
       const html = new TextDecoder().decode(await readLimited(response, MAX_HTML, true))
       let images: string[] = []
+      let shop: ProductDetails = {}
       const shopify = shopifyJsonUrl(html, finalUrl)
       if (shopify) {
         try {
           const r = await safeFetch(shopify, { ...deps, accept: 'application/json', timeoutMs: 5000, userAgent: UA })
-          if (r.response.ok) images = shopifyImages(JSON.parse(new TextDecoder().decode(await readLimited(r.response, MAX_JSON))), finalUrl)
-          else await r.response.body?.cancel()
+          if (r.response.ok) {
+            const data: unknown = JSON.parse(new TextDecoder().decode(await readLimited(r.response, MAX_JSON)))
+            images = shopifyImages(data, finalUrl)
+            shop = shopifyDetails(data)
+          } else await r.response.body?.cancel()
         } catch {
           // fall back to the page itself
         }
       }
-      return json(200, { images: normalize([...images, ...extractImageUrls(html, finalUrl)], finalUrl) })
+      const page = extractDetails(html)
+      return json(200, {
+        images: normalize([...images, ...extractImageUrls(html, finalUrl)], finalUrl),
+        name: shop.name ?? page.name,
+        brand: shop.brand ?? page.brand,
+      })
     } catch (e) {
       return failure(e)
     }

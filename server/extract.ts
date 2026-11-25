@@ -62,8 +62,66 @@ export function normalize(urls: string[], base: URL): string[] {
   return out
 }
 
+export interface ProductDetails {
+  name?: string
+  brand?: string
+}
+
+const MAX_TEXT = 120
+
+/** Product name and brand: JSON-LD Product first, then meta tags (og:title, product:brand). */
+export function extractDetails(html: string): ProductDetails {
+  let name: string | undefined
+  let brand: string | undefined
+  for (const p of jsonLdProducts(html)) {
+    name ??= text(p.name)
+    brand ??= brandText(p.brand)
+  }
+  const meta: Record<string, string> = {}
+  for (const tag of html.match(/<meta\b[^>]*>/gi) ?? []) {
+    const a = attrs(tag)
+    const key = (a.property ?? a.name ?? a.itemprop ?? '').toLowerCase()
+    if (key && a.content && !(key in meta)) meta[key] = a.content
+  }
+  brand ??= text(meta['product:brand'] ?? meta['og:brand'] ?? meta['brand'])
+  name ??= stripSiteName(text(meta['og:title'] ?? meta['twitter:title']), text(meta['og:site_name']))
+  return { name, brand }
+}
+
+/** Shopify product JSON: title and vendor. */
+export function shopifyDetails(json: unknown): ProductDetails {
+  const p = (json as { product?: { title?: unknown; vendor?: unknown } })?.product
+  return { name: text(p?.title), brand: text(p?.vendor) }
+}
+
+function brandText(v: unknown): string | undefined {
+  if (Array.isArray(v)) return brandText(v[0])
+  if (v && typeof v === 'object') return text((v as Record<string, unknown>).name)
+  return text(v)
+}
+
+/** "Linen shirt | Store" → "Linen shirt" when the suffix is the site name. */
+function stripSiteName(title?: string, site?: string): string | undefined {
+  if (!title || !site) return title
+  const m = title.match(/^(.*?)\s*[|–—-]\s*([^|–—-]+)$/)
+  return m && m[2].trim().toLowerCase() === site.toLowerCase() && m[1] ? m[1] : title
+}
+
+/** Plain, trimmed, decoded text, or undefined. Long values are cut. */
+function text(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined
+  const t = decodeEntities(v).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+  return t ? t.slice(0, MAX_TEXT) : undefined
+}
+
 function jsonLdImages(html: string): string[] {
   const out: string[] = []
+  for (const p of jsonLdProducts(html)) collectImage(p.image, out)
+  return out
+}
+
+function jsonLdProducts(html: string): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = []
   const re = /<script\b[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script>/gi
   for (const m of html.matchAll(re)) {
     let data: unknown
@@ -77,7 +135,7 @@ function jsonLdImages(html: string): string[] {
   return out
 }
 
-function walk(node: unknown, out: string[], depth: number) {
+function walk(node: unknown, out: Record<string, unknown>[], depth: number) {
   if (depth > 8 || node === null || typeof node !== 'object') return
   if (Array.isArray(node)) {
     for (const n of node) walk(n, out, depth + 1)
@@ -85,7 +143,7 @@ function walk(node: unknown, out: string[], depth: number) {
   }
   const obj = node as Record<string, unknown>
   const types = ([] as unknown[]).concat(obj['@type'] ?? []).map(String)
-  if (types.some((t) => t === 'Product' || t === 'ProductGroup' || t === 'IndividualProduct')) collectImage(obj.image, out)
+  if (types.some((t) => t === 'Product' || t === 'ProductGroup' || t === 'IndividualProduct')) out.push(obj)
   for (const k of ['@graph', 'hasVariant', 'mainEntity', 'itemListElement', 'item']) walk(obj[k], out, depth + 1)
 }
 
@@ -112,5 +170,6 @@ function decodeEntities(s: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#0*39;|&apos;/g, "'")
     .replace(/&#x2f;/gi, '/')
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
     .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
 }

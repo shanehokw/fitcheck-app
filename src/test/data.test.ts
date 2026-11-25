@@ -6,7 +6,10 @@ import {
   createLook, createPiece, deleteLook, deletePiece, getLook, linkPiece,
   listLookSummaries, listPieces, updatePiece,
 } from '../data/repo'
+import { createCollection, listCollections, reorderCollections, reorderPieces } from '../data/repo'
 import { isComplete } from '../lib/looks'
+import { EMPTY_FILTER, filterFromParams, filterOptions, filterToParams, matchesFilter, type PieceFilter } from '../lib/pieceFilter'
+import { moveWithin } from '../lib/sortable'
 import { computeStats } from '../lib/stats'
 
 const photo = (s = 'img') => new Blob([new TextEncoder().encode(s)], { type: 'image/webp' })
@@ -239,5 +242,70 @@ describe('piece photos', () => {
     await updatePiece(id, {}, photo('p3'))
     await deletePiece(id)
     expect(await db.photos.count()).toBe(0)
+  })
+})
+
+describe('manual order and brand', () => {
+  it('pieces: name order until reordered, then saved order; new pieces go last', async () => {
+    const b = await piece('B', 'top', [])
+    const a = await piece('A', 'top', [])
+    const c = await piece('C', 'top', [])
+    expect((await listPieces()).map((p) => p.name)).toEqual(['A', 'B', 'C'])
+    await reorderPieces([c, a, b])
+    expect((await listPieces()).map((p) => p.name)).toEqual(['C', 'A', 'B'])
+    await piece('0 new', 'top', [])
+    expect((await listPieces()).map((p) => p.name)).toEqual(['C', 'A', 'B', '0 new'])
+  })
+
+  it('collections keep the saved order', async () => {
+    const x = await createCollection({ name: 'X' })
+    const y = await createCollection({ name: 'Y' })
+    await reorderCollections([y, x])
+    expect((await listCollections()).map((c) => c.collection.name)).toEqual(['Y', 'X'])
+  })
+
+  it('brand is trimmed; blank clears it', async () => {
+    const id = await createPiece({ name: 'Tee', brand: '  Uniqlo ', category: 'top', styles: [], status: 'owned' })
+    expect((await db.pieces.get(id))!.brand).toBe('Uniqlo')
+    await updatePiece(id, { brand: '  ' })
+    expect((await db.pieces.get(id))!.brand).toBeUndefined()
+  })
+})
+
+describe('moveWithin (drag in a filtered list)', () => {
+  it('reorders visible rows and leaves hidden rows in place', () => {
+    // all: a B c D e; visible (capitals): B D. Drag D onto B.
+    expect(moveWithin(['a', 'B', 'c', 'D', 'e'], ['B', 'D'], 'D', 'B')).toEqual(['a', 'D', 'c', 'B', 'e'])
+  })
+  it('unfiltered: plain move', () => {
+    expect(moveWithin(['a', 'b', 'c'], ['a', 'b', 'c'], 'a', 'c')).toEqual(['b', 'c', 'a'])
+  })
+})
+
+describe('piece filters', () => {
+  const base = { id: 'x', status: 'owned' as const, createdAt: 0, updatedAt: 0 }
+  const tee = { ...base, id: 't', name: 'White tee', brand: 'Uniqlo', category: 'top', styles: ['plain', 'casual'] }
+  const skirt = { ...base, id: 's', name: 'Pencil skirt', category: 'skirt', styles: ['pencil', 'formal'], status: 'wanted' as const }
+  const f = (over: Partial<PieceFilter>) => ({ ...EMPTY_FILTER, ...over })
+
+  it('search: every word must match name, brand, category or styles', () => {
+    expect(matchesFilter(tee, f({ q: 'uniqlo casual' }))).toBe(true)
+    expect(matchesFilter(tee, f({ q: 'uniqlo formal' }))).toBe(false)
+    expect(matchesFilter(skirt, f({ q: 'PENCIL' }))).toBe(true)
+  })
+  it('status, category, brand (any case), and all selected styles', () => {
+    expect(matchesFilter(skirt, f({ status: 'owned' }))).toBe(false)
+    expect(matchesFilter(tee, f({ category: 'top', brand: 'uniqlo' }))).toBe(true)
+    expect(matchesFilter(skirt, f({ brand: 'uniqlo' }))).toBe(false)
+    expect(matchesFilter(tee, f({ styles: ['plain', 'casual'] }))).toBe(true)
+    expect(matchesFilter(tee, f({ styles: ['plain', 'formal'] }))).toBe(false)
+  })
+  it('options come from the pieces; brands de-duplicated ignoring case', () => {
+    const o = filterOptions([tee, skirt, { ...tee, id: 't2', brand: 'UNIQLO' }])
+    expect(o).toEqual({ categories: ['skirt', 'top'], brands: ['Uniqlo'], styles: ['casual', 'formal', 'pencil', 'plain'] })
+  })
+  it('round-trips through the address', () => {
+    const x = f({ q: 'tee', status: 'wanted', brand: 'Uniqlo', styles: ['a', 'b'] })
+    expect(filterFromParams(filterToParams(x))).toEqual(x)
   })
 })
